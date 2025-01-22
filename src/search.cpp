@@ -17,12 +17,19 @@ void Search::calculate(uint32_t depth) {
     }
     if (!depth) {
         bd.evalBuffer = bd.evaluator.getEval(bd.board.getCol());
-        tt.add(bd.getZobrist(), bd.evalBuffer, maxDepth, EXACT);
+        tt.add(bd.getZobrist(), bd.evalBuffer, depth, EXACT);
         ds.up(-bd.evalBuffer);
         return;
     }
     bd.endMove = bd.board.getMoves(bd.moves);
     bd.curMove = bd.moves;
+
+    if (bd.curMove == bd.endMove) {
+        bd.evalBuffer = bd.board.isChecked() ? MATED : 0;
+        tt.add(bd.getZobrist(), bd.evalBuffer, depth, EXACT);
+        ds.up(-bd.evalBuffer);
+        return;
+    }
 
     // sort
     for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
