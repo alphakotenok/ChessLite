@@ -1,10 +1,12 @@
 #include "board.hpp"
+#include "evaluator.hpp"
 #include "extra.hpp"
 #include "move.hpp"
 #include "types.hpp"
 
-void Board::recalculatePinned() {
-    pinned = 0;
+void Board::recalculatePinned(Color col) {
+    pinned[col] = 0;
+    pinner[col] = 0;
     int kingPos = lsb(pieces(col, KING));
     Color notCol = ~col;
     ull pinnerCandidates = (getRookMoves(kingPos, pieces(notCol)) & pieces(notCol, ROOK, QUEEN)) |
@@ -15,7 +17,10 @@ void Board::recalculatePinned() {
         ull attackLine = getSegment(kingPos, current) & pieces(col);
         if (attackLine) {
             ull pinnedCandidate = extractPowerLSB(attackLine);
-            if (!attackLine) pinned |= pinnedCandidate;
+            if (!attackLine) {
+                pinned[col] |= pinnedCandidate;
+                pinner[col] |= posToULL[current];
+            }
         }
     }
 }
@@ -30,7 +35,7 @@ void Board::recalculateChecker() {
     if (attackers) checker = DOUBLE_CHECK;
 }
 
-ull Board::getAttackers(int pos, ull target) {
+ull Board::getAttackers(int pos, ull target) const {
     return (pieces(WHITE, PAWN) & pawnAttacks[(pos << 1) + 1]) |
            (pieces(BLACK, PAWN) & pawnAttacks[(pos << 1)]) |
            (pieces(KNIGHT) & knightAttacks[pos]) |
@@ -131,7 +136,7 @@ Move *Board::getPseudolegalPawnMoves(Move *mp) {
 }
 
 template <Color color, KingSafety ks>
-Move *Board::getAggressivePseudolegalPawnMoves(Move *mp) {
+Move *Board::getCapturePseudolegalPawnMoves(Move *mp) {
     constexpr Color notColor = ~color;
     constexpr ull thirdRank = (color == WHITE ? RANK_3 : RANK_6);
     constexpr ull sevenRank = (color == WHITE ? RANK_7 : RANK_2);
@@ -147,26 +152,6 @@ Move *Board::getAggressivePseudolegalPawnMoves(Move *mp) {
     ull pawnsPromotion = pieces(color, PAWN) & sevenRank;
 
     ull step1;
-
-    // check4check
-    if constexpr (ks == IN_CHECK) {
-        // one and two step forward(no promotions)
-        step1 = shift<up>(pawnsRegular) & empty;
-        ull step2 = shift<up>(step1 & thirdRank) & empty;
-        ull target = getSegment(lsb(pieces(color, KING)), checker);
-        empty &= target;
-        enemies &= target;
-        step1 &= target;
-        step2 &= target;
-        while (step1) {
-            int to = extractLSB(step1);
-            *(mp++) = Move(to - up, to);
-        }
-        while (step2) {
-            int to = extractLSB(step2);
-            *(mp++) = Move(to - (up << 1), to);
-        }
-    }
 
     // captures(no promotions)
     step1 = shift<leftup>(pawnsRegular) & enemies;
@@ -233,18 +218,13 @@ Move *Board::getPseudolegalMoves(Move *mp) { // not for a king or a pawn
 }
 
 template <PieceType pt, KingSafety ks>
-Move *Board::getAggressivePseudolegalMoves(Move *mp) { // not for a king or a pawn
+Move *Board::getCapturePseudolegalMoves(Move *mp) { // not for a king or a pawn
     Color notCol = ~col;
     ull p = pieces(pt) & pieces(col);
     ull moves;
     while (p) {
         int from = extractLSB(p);
         moves = getPseudolegalMoves<pt>(from) & pieces(notCol);
-
-        // check4check
-        if constexpr (ks == IN_CHECK) {
-            moves &= getSegment(lsb(pieces(col, KING)), checker);
-        }
 
         while (moves) {
             *(mp++) = Move(from, extractLSB(moves));
@@ -291,26 +271,22 @@ template Move *Board::getAllPseudolegalMoves<WHITE, IN_CHECK>(Move *);
 template Move *Board::getAllPseudolegalMoves<BLACK, IN_CHECK>(Move *);
 
 template <Color color, KingSafety ks>
-Move *Board::getAggressivePseudolegalMoves(Move *mp) {
-
+Move *Board::getCapturePseudolegalMoves(Move *mp) {
+    assert(ks == SAFE);
     constexpr Color notColor = ~color;
 
     // double check disables all but king moves
     if (checker != DOUBLE_CHECK) {
-        mp = getAggressivePseudolegalPawnMoves<color, ks>(mp);
-        mp = getAggressivePseudolegalMoves<BISHOP, ks>(mp);
-        mp = getAggressivePseudolegalMoves<KNIGHT, ks>(mp);
-        mp = getAggressivePseudolegalMoves<ROOK, ks>(mp);
-        mp = getAggressivePseudolegalMoves<QUEEN, ks>(mp);
+        mp = getCapturePseudolegalPawnMoves<color, ks>(mp);
+        mp = getCapturePseudolegalMoves<BISHOP, ks>(mp);
+        mp = getCapturePseudolegalMoves<KNIGHT, ks>(mp);
+        mp = getCapturePseudolegalMoves<ROOK, ks>(mp);
+        mp = getCapturePseudolegalMoves<QUEEN, ks>(mp);
     }
 
     int kingPos = lsb(pieces(color, KING));
     ull kingMoves;
-    if constexpr (ks == IN_CHECK) {
-        kingMoves = getPseudolegalMoves<KING>(kingPos) & ~pieces(color);
-    } else {
-        kingMoves = getPseudolegalMoves<KING>(kingPos) & pieces(notColor);
-    }
+    kingMoves = getPseudolegalMoves<KING>(kingPos) & pieces(notColor);
 
     while (kingMoves) {
         *(mp++) = Move(kingPos, extractLSB(kingMoves));
@@ -320,10 +296,10 @@ Move *Board::getAggressivePseudolegalMoves(Move *mp) {
 }
 
 // explicit instantiation
-template Move *Board::getAggressivePseudolegalMoves<WHITE, SAFE>(Move *);
-template Move *Board::getAggressivePseudolegalMoves<BLACK, SAFE>(Move *);
-template Move *Board::getAggressivePseudolegalMoves<WHITE, IN_CHECK>(Move *);
-template Move *Board::getAggressivePseudolegalMoves<BLACK, IN_CHECK>(Move *);
+template Move *Board::getCapturePseudolegalMoves<WHITE, SAFE>(Move *);
+template Move *Board::getCapturePseudolegalMoves<BLACK, SAFE>(Move *);
+template Move *Board::getCapturePseudolegalMoves<WHITE, IN_CHECK>(Move *);
+template Move *Board::getCapturePseudolegalMoves<BLACK, IN_CHECK>(Move *);
 
 bool Board::isLegal(Move m) {
     int from = m.from();
@@ -360,7 +336,7 @@ bool Board::isLegal(Move m) {
 
     // check whether move did not lead to self check
 
-    return !(pinned & posToULL[from]) || (getSegment(kingPos, to) & posToULL[from]) || (getSegment(kingPos, from) & posToULL[to]);
+    return !(pinned[col] & posToULL[from]) || (getSegment(kingPos, to) & posToULL[from]) || (getSegment(kingPos, from) & posToULL[to]);
 }
 
 Move *Board::getMoves(Move *mp) {
@@ -370,19 +346,19 @@ Move *Board::getMoves(Move *mp) {
                                               : getAllPseudolegalMoves<WHITE, SAFE>(mp));
     Move *ans = mp;
     for (; mp < endMove; ++mp) {
-        if (isLegal(*mp)) *(ans++) = *mp;
+        if (isLegal(*mp) && checkSEE(*mp, -200)) *(ans++) = *mp;
     }
     return ans;
 }
 
-Move *Board::getAggressiveMoves(Move *mp) {
-    Move *endMove = col ? (isInCheck(checker) ? getAggressivePseudolegalMoves<BLACK, IN_CHECK>(mp)
-                                              : getAggressivePseudolegalMoves<BLACK, SAFE>(mp))
-                        : (isInCheck(checker) ? getAggressivePseudolegalMoves<WHITE, IN_CHECK>(mp)
-                                              : getAggressivePseudolegalMoves<WHITE, SAFE>(mp));
+Move *Board::getCaptureMoves(Move *mp) {
+    Move *endMove = col ? (isInCheck(checker) ? getCapturePseudolegalMoves<BLACK, IN_CHECK>(mp)
+                                              : getCapturePseudolegalMoves<BLACK, SAFE>(mp))
+                        : (isInCheck(checker) ? getCapturePseudolegalMoves<WHITE, IN_CHECK>(mp)
+                                              : getCapturePseudolegalMoves<WHITE, SAFE>(mp));
     Move *ans = mp;
     for (; mp < endMove; ++mp) {
-        if (isLegal(*mp)) *(ans++) = *mp;
+        if (isLegal(*mp) && checkSEE(*mp, -100)) *(ans++) = *mp;
     }
     return ans;
 }
@@ -405,8 +381,20 @@ void Board::applyMove(Move m, Board *b) const {
     // castling
     if (type == CASTLE) {
         b->castling &= ~(3 << (2 * col));
-        ull rookMove = ((to > from) ? posToULL[to - 1] | posToULL[to + 1] : posToULL[to + 1] | posToULL[to - 2]);
+        ull rookMove;
+        if (to > from) {
+            rookMove = posToULL[to - 1] | posToULL[to + 1];
+            b->pieceAt[to - 1] = pieceAt[to + 1];
+            b->pieceAt[to + 1] = 0;
+        } else {
+            rookMove = posToULL[to + 1] | posToULL[to - 2];
+            b->pieceAt[to + 1] = pieceAt[to - 2];
+            b->pieceAt[to - 2] = 0;
+        }
+
         ull kingMove = toULL | fromULL;
+        b->pieceAt[to] = pieceAt[from];
+        b->pieceAt[from] = 0;
 
         b->byType[ROOK] ^= rookMove;
         b->byType[KING] ^= kingMove;
@@ -421,6 +409,11 @@ void Board::applyMove(Move m, Board *b) const {
     if (type == EN_PASSANT) {
         ull pawnMove = fromULL | posToULL[en_passant];
         ull capturedPawn = toULL;
+
+        b->pieceAt[to] = 0;
+        b->pieceAt[to + (col ? 8 : -8)] = pieceAt[from];
+        b->pieceAt[from] = 0;
+
         b->byCol[col] ^= pawnMove;
         b->byCol[notCol] ^= capturedPawn;
         b->byType[PAWN] ^= pawnMove ^ capturedPawn;
@@ -433,26 +426,29 @@ void Board::applyMove(Move m, Board *b) const {
 
     // handle regular piece movement
     ull pieceMove = fromULL | toULL;
-    int pt = ROOK;
-    while (!(b->byType[pt] & fromULL)) ++pt;
+    int ptFrom = pieceAt[from];
+
+    ptFrom -= (ptFrom > 6 ? 7 : 1);
 
     b->byCol[col] ^= pieceMove;
 
     // handle captures
     if (b->byCol[notCol] & toULL) {
-        for (int p = ROOK; p < KING; ++p) {
-            b->byType[p] &= ~toULL;
+        int ptTo = pieceAt[to];
+        if (ptTo) {
+            ptTo -= (ptTo > 6 ? 7 : 1);
+            b->byType[ptTo] ^= toULL;
         }
         b->byCol[notCol] ^= toULL;
         b->all ^= toULL;
         b->fiftyMoveTimer = 0;
     }
 
-    b->byType[pt] ^= pieceMove;
+    b->byType[ptFrom] ^= pieceMove;
     b->all ^= pieceMove;
 
     // handle pawn moves
-    if (pt == PAWN) {
+    if (ptFrom == PAWN) {
         b->fiftyMoveTimer = 0;
         if (abs(to - from) == 16) {
             b->en_passant = (from + to) / 2;
@@ -460,7 +456,7 @@ void Board::applyMove(Move m, Board *b) const {
     }
 
     // update castling rights
-    if (pt == KING) {
+    if (ptFrom == KING) {
         b->castling &= ~(3 << (2 * col));
     }
     if (from == (col ? 0 : 56)) b->castling &= ~(2 << (2 * col));
@@ -469,10 +465,14 @@ void Board::applyMove(Move m, Board *b) const {
     if (to == (col ? 56 : 0)) b->castling &= ~(2 << (2 * (1 - col)));
     if (to == (col ? 63 : 7)) b->castling &= ~(1 << (2 * (1 - col)));
 
+    b->pieceAt[to] = pieceAt[from];
+    b->pieceAt[from] = 0;
+
     // promotion
     if (type == PROMOTION) {
         b->byType[PAWN] ^= toULL;
         b->byType[m.promotion()] ^= toULL;
+        b->pieceAt[to] = m.promotion() + (b->pieceAt[to] > 6 ? 7 : 1);
     }
 
     b->recalculatePinned();
@@ -593,6 +593,62 @@ Board::Board(std::string s) {
     fiftyMoveTimer = s[pos] - '0';
     recalculatePinned();
     recalculateChecker();
+    recalculatePieceAt();
+}
+
+// from cfish
+bool Board::checkSEE(Move m, int val) const {
+
+    int from = m.from(), to = m.to();
+    ull occ;
+    if (!pieceAt[to]) return 0 >= val;
+
+    int swap = PIECE_VALUE[pieceAt[to] - (pieceAt[to] > 6 ? 7 : 1)] - val;
+    if (swap < 0)
+        return false;
+
+    swap = PIECE_VALUE[pieceAt[from] - (pieceAt[from] > 6 ? 7 : 1)] - swap;
+    if (swap <= 0)
+        return true;
+
+    occ = pieces() ^ posToULL[from] ^ posToULL[to];
+    Color curCol = pieceAt[from] > 6 ? BLACK : WHITE;
+    ull attackers = getAttackers(to, occ), curAttackers;
+    bool res = true;
+
+    while (true) {
+        curCol = ~curCol;
+        attackers &= occ;
+        if (!(curAttackers = attackers & byCol[curCol])) break;
+        if ((curAttackers & pinned[curCol]) && (pinner[curCol] & occ))
+            curAttackers &= ~pinned[curCol];
+        if (!curAttackers) break;
+        res = !res;
+        ull bb;
+        if ((bb = curAttackers & byType[PAWN])) {
+            if ((swap = PIECE_VALUE[PAWN] - swap) < res) break;
+            occ ^= bb & -bb;
+            attackers |= getBishopMoves(to, occ) & pieces(BISHOP, QUEEN);
+        } else if ((bb = curAttackers & byType[KNIGHT])) {
+            if ((swap = PIECE_VALUE[KNIGHT] - swap) < res) break;
+            occ ^= bb & -bb;
+        } else if ((bb = curAttackers & byType[BISHOP])) {
+            if ((swap = PIECE_VALUE[BISHOP] - swap) < res) break;
+            occ ^= bb & -bb;
+            attackers |= getBishopMoves(to, occ) & pieces(BISHOP, QUEEN);
+        } else if ((bb = curAttackers & byType[ROOK])) {
+            if ((swap = PIECE_VALUE[ROOK] - swap) < res) break;
+            occ ^= bb & -bb;
+            attackers |= getRookMoves(to, occ) & pieces(ROOK, QUEEN);
+        } else if ((bb = curAttackers & byType[QUEEN])) {
+            if ((swap = PIECE_VALUE[QUEEN] - swap) < res) break;
+            occ ^= bb & -bb;
+            attackers |= (getBishopMoves(to, occ) & pieces(BISHOP, QUEEN)) | (getRookMoves(to, occ) & pieces(ROOK, QUEEN));
+        } else // KING
+            return (attackers & ~byCol[curCol]) ? !res : res;
+    }
+
+    return res;
 }
 
 ull Board::getExtraZobrist() {
@@ -600,4 +656,22 @@ ull Board::getExtraZobrist() {
     if (col) zobrist ^= zobristHash[792];
     if (en_passant != NO_ENPASSANT) zobrist ^= zobristHash[784 + (en_passant & 7)];
     return zobrist;
+}
+
+void Board::recalculatePieceAt() {
+    memset(pieceAt, 0, 64 * sizeof(uint32_t));
+    ull mask;
+    int bit;
+    for (int j = 0; j < 6; ++j) {
+        mask = byCol[0] & byType[j];
+        while (mask) {
+            bit = extractLSB(mask);
+            pieceAt[bit] = j + 1;
+        }
+        mask = byCol[1] & byType[j];
+        while (mask) {
+            bit = extractLSB(mask);
+            pieceAt[bit] = j + 7;
+        }
+    }
 }

@@ -8,11 +8,17 @@ void DataStack::down(Move m) {
     newBD.evaluator.update(m);
     newBD.alpha = -oldBD.beta;
     newBD.beta = -oldBD.alpha;
+    newBD.isStart = 0;
     increaseRepetitions(newBD.getZobrist());
     ++pointer;
 }
 
 void DataStack::up(int value) {
+    if (stack[pointer - 1].isStart) {
+        stack[pointer - 1].evalBuffer = -value;
+        --stack[pointer - 1].isStart;
+        return;
+    }
     assert(pointer > 1);
     stack[pointer - 2].evalBuffer = value;
     decreaseRepetitions(stack[pointer - 1].getZobrist());
@@ -28,6 +34,8 @@ void DataStack::makeMove(Move m) {
     bd.evaluator.reset();
     bd.alpha = WORST_EVAL;
     bd.beta = PERFECT_EVAL;
+    bd.isStart = 0;
+    increaseRepetitions(bd.getZobrist());
 }
 
 void DataStack::setAB(int alpha, int beta) {

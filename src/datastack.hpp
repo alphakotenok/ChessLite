@@ -15,6 +15,7 @@ public:
     int alpha;
     int beta;
     int evalBuffer;
+    int isStart;
     Move bestMove;
 
     BoardData(Board board = Board()) : board(board) {
@@ -22,6 +23,7 @@ public:
         evaluator.reset();
         alpha = WORST_EVAL;
         beta = PERFECT_EVAL;
+        uint32_t isStart = 0;
     }
 
     inline int getEval() { return evaluator.getEval(board.getCol()); }

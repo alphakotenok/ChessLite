@@ -15,6 +15,7 @@ private:
     int moveStrength[MAX_MOVE_SIZE];
 
     void calculate(uint32_t depth);
+    void quiescent();
     template <Side>
     void moveBySide();
 

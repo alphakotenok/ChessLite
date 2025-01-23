@@ -2,6 +2,60 @@
 #include "transposition.hpp"
 #include "types.hpp"
 
+void Search::quiescent() {
+    BoardData &bd = ds.getTopBD();
+
+    if (ds.getRepetitions(bd.getZobrist()) > 2) {
+        ds.up(0);
+        return;
+    }
+
+    if (bd.board.isChecked()) {
+        ++bd.isStart;
+        calculate(1);
+        ds.up(-bd.evalBuffer);
+        return;
+    }
+
+    bd.evalBuffer = bd.evaluator.getEval(bd.board.getCol());
+
+    if (bd.evalBuffer >= bd.beta) {
+        ds.up(-bd.beta);
+        return;
+    }
+    if (bd.evalBuffer > bd.alpha) {
+        bd.alpha = bd.evalBuffer;
+    }
+
+    bd.endMove = bd.board.getCaptureMoves(bd.moves);
+    bd.curMove = bd.moves;
+
+    for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
+        moveStrength[ptr] = bd.evaluator.getMoveStrength(bd.moves[ptr], bd.board.getCol());
+        for (int j = ptr; j; --j) {
+            if (moveStrength[j] > moveStrength[j - 1]) {
+                std::swap(moveStrength[j], moveStrength[j - 1]);
+                std::swap(bd.moves[j], bd.moves[j - 1]);
+            }
+        }
+    }
+
+    while (bd.curMove != bd.endMove) {
+        ds.down(*bd.curMove);
+        quiescent();
+        if (bd.evalBuffer >= bd.beta) {
+            ds.up(-bd.beta);
+            return;
+        }
+        if (bd.evalBuffer > bd.alpha) {
+            bd.alpha = bd.evalBuffer;
+        }
+        ++bd.curMove;
+    }
+    ds.up(-bd.alpha);
+    return;
+}
+
 void Search::calculate(uint32_t depth) {
     ++vis;
     bool foundPV = false;
@@ -16,7 +70,8 @@ void Search::calculate(uint32_t depth) {
         return;
     }
     if (!depth) {
-        bd.evalBuffer = bd.evaluator.getEval(bd.board.getCol());
+        ++bd.isStart;
+        quiescent();
         tt.add(bd.getZobrist(), bd.evalBuffer, depth, EXACT);
         ds.up(-bd.evalBuffer);
         return;

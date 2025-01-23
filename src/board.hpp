@@ -7,16 +7,23 @@ private:
     ull byType[6];
     ull byCol[2];
     ull all;
-    ull pinned;
+    ull pinned[2];
+    ull pinner[2];
     ull extraZobrist;
+    uint32_t pieceAt[64];
     Color col;
     uint8_t fiftyMoveTimer;
     uint8_t castling;
     uint8_t en_passant; // 0-63 - position of en passant, 64 - no en passant
     uint8_t checker;    // 0-63 - position of checker, 64 - double check, 65 - no check
 
-    void recalculatePinned();
+    void recalculatePinned(Color col);
+    inline void recalculatePinned() {
+        recalculatePinned(WHITE);
+        recalculatePinned(BLACK);
+    }
     void recalculateChecker();
+    void recalculatePieceAt();
 
 public:
     Board() {}
@@ -98,29 +105,29 @@ public:
     template <>
     inline ull getPseudolegalMoves<KNIGHT>(int pos) { return knightAttacks[pos]; }
 
-    ull getAttackers(int pos, ull target);
+    ull getAttackers(int pos, ull target) const;
 
     template <Color, KingSafety>
     Move *getPseudolegalPawnMoves(Move *mp);
 
     template <Color, KingSafety>
-    Move *getAggressivePseudolegalPawnMoves(Move *mp);
+    Move *getCapturePseudolegalPawnMoves(Move *mp);
 
     template <PieceType, KingSafety>
     Move *getPseudolegalMoves(Move *mp); // all but king and pawn
 
     template <PieceType, KingSafety>
-    Move *getAggressivePseudolegalMoves(Move *mp); // all but king and pawn
+    Move *getCapturePseudolegalMoves(Move *mp); // all but king and pawn
 
     template <Color, KingSafety>
     Move *getAllPseudolegalMoves(Move *mp);
 
     template <Color, KingSafety>
-    Move *getAggressivePseudolegalMoves(Move *mp);
+    Move *getCapturePseudolegalMoves(Move *mp);
 
     bool isLegal(Move m);
     Move *getMoves(Move *mp);
-    Move *getAggressiveMoves(Move *mp);
+    Move *getCaptureMoves(Move *mp);
     void applyMove(Move m, Board *b) const;
 
     inline bool isChecked() { return checker != NO_CHECK; };
@@ -131,6 +138,9 @@ public:
     std::string parseMoveToStr(Move move);
 
     void setPT(int *pt);
+
+    inline uint32_t getPieceAt(int pos) { return pieceAt[pos]; }
+    bool checkSEE(Move m, int val) const;
 
     ull getExtraZobrist();
 };
