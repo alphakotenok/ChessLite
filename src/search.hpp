@@ -22,7 +22,7 @@ private:
     bool debug = 0;
     int alpha;
     int beta;
-    int moveTL = 50;
+    int moveTL = 70;
     bool workerHasToStop;
 
     void calculate(uint32_t depth);
