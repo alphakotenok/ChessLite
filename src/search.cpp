@@ -1,6 +1,7 @@
 #include "search.hpp"
 #include "transposition.hpp"
 #include "types.hpp"
+#include <thread>
 
 void Search::quiescent() {
     bool foundPV = false;
@@ -110,7 +111,6 @@ void Search::calculate(uint32_t depth) {
 
     // sort
     for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
-        // if (ds.getCurDepth() == 1) std::cout << bd.board.parseMoveToStr(bd.moves[ptr]) << ' ';
         if (pvUsed && PVPointer >= ds.getCurDepth() && bd.moves[ptr] == PVStack[ds.getCurDepth() - 1]) {
             moveStrength[ptr] = PERFECT_EVAL + 1;
         } else if (bd.moves[ptr] == bd.bestMove) {
@@ -125,7 +125,6 @@ void Search::calculate(uint32_t depth) {
             }
         }
     }
-    // if (ds.getCurDepth() == 1) std::cout << std::endl;
 
     while (bd.curMove != bd.endMove) {
         if (pvUsed && *bd.curMove != PVStack[ds.getCurDepth() - 1]) {
@@ -157,6 +156,10 @@ void Search::calculate(uint32_t depth) {
             bd.pvLen = ds.getFuturePVLen() + 1;
         }
         ++bd.curMove;
+        if (workerHasToStop) {
+            ds.up(-bd.alpha);
+            return;
+        }
     }
 
     // tt.add(bd.getZobrist(), bd.alpha, depth, et, bd.bestMove);
@@ -173,14 +176,15 @@ void Search::moveBySide() {
         float remainingTime;
         std::string moveStr;
         std::cin >> moveStr >> remainingTime;
-        if (remainingTime < 3) moveTL = 45;
+        if (remainingTime < 3) moveTL = 40;
         if (remainingTime < 1) moveTL = 20;
         move = ds.getCurBD().board.parseStrToMove(moveStr);
     } else {
         PVPointer = 0;
         alpha = WORST_EVAL;
         beta = PERFECT_EVAL;
-        auto startTime = std::chrono::high_resolution_clock::now();
+        workerHasToStop = false;
+        std::thread timerThread(&Search::setWorkerTimer, this);
         for (int depth = 1;;) {
             pvUsed = 1;
             bd.isStart = 1;
@@ -188,6 +192,9 @@ void Search::moveBySide() {
             bd.pvLen = 0;
 
             calculate(depth);
+            if (workerHasToStop) {
+                break;
+            }
             move = bd.bestMove;
 
             if (bd.evalBuffer <= alpha || bd.evalBuffer >= beta) {
@@ -197,12 +204,6 @@ void Search::moveBySide() {
                 alpha = bd.evalBuffer - aspirationWindow;
                 beta = bd.evalBuffer + aspirationWindow;
                 ++depth;
-                auto now = std::chrono::high_resolution_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
-
-                if (elapsed > moveTL) {
-                    break;
-                }
             }
 
             // collect PV
@@ -223,6 +224,7 @@ void Search::moveBySide() {
                 std::cout << ", vis: " << vis << std::endl;
             }
         }
+        timerThread.join();
         std::cout << bd.board.parseMoveToStr(move) << std::endl;
     }
     ds.makeMove(move);
@@ -233,4 +235,9 @@ void Search::start() {
         moveBySide<US>();
         moveBySide<NOT_US>();
     }
+}
+
+void Search::setWorkerTimer() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(moveTL));
+    workerHasToStop = true;
 }

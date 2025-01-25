@@ -6,6 +6,7 @@
 #include "transposition.hpp"
 #include "types.hpp"
 #include <chrono>
+#include <thread>
 
 class Search {
 private:
@@ -21,12 +22,14 @@ private:
     bool debug = 0;
     int alpha;
     int beta;
-    int moveTL = 70;
+    int moveTL = 50;
+    bool workerHasToStop;
 
     void calculate(uint32_t depth);
     void quiescent();
     template <Side>
     void moveBySide();
+    void setWorkerTimer();
 
 public:
     Search(Board board) : ds(board), PVStack{0} {}
