@@ -18,6 +18,15 @@ void Search::quiescent() {
         return;
     }
 
+    bd.endMove = bd.board.getCaptureMoves(bd.moves);
+    bd.curMove = bd.moves;
+
+    if (bd.board.isFinished()) {
+        bd.evalBuffer = bd.board.isChecked() ? MATED : 0;
+        ds.up(-bd.evalBuffer);
+        return;
+    }
+
     bd.evalBuffer = bd.evaluator.getEval(bd.board.getCol());
 
     if (bd.evalBuffer >= bd.beta) {
@@ -26,15 +35,6 @@ void Search::quiescent() {
     }
     if (bd.evalBuffer > bd.alpha) {
         bd.alpha = bd.evalBuffer;
-    }
-
-    bd.endMove = bd.board.getCaptureMoves(bd.moves);
-    bd.curMove = bd.moves;
-
-    if (bd.board.isFinished()) {
-        bd.evalBuffer = bd.board.isChecked() ? MATED : 0;
-        ds.up(-bd.evalBuffer);
-        return;
     }
 
     for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
@@ -159,7 +159,7 @@ void Search::calculate(uint32_t depth) {
         ++bd.curMove;
     }
 
-    tt.add(bd.getZobrist(), bd.alpha, depth, et, bd.bestMove);
+    // tt.add(bd.getZobrist(), bd.alpha, depth, et, bd.bestMove);
     ds.up(-bd.alpha);
     return;
 }
@@ -184,13 +184,11 @@ void Search::moveBySide() {
             pvUsed = 1;
             bd.isStart = 1;
             ds.setAB(alpha, beta);
+            bd.pvLen = 0;
+
             calculate(depth);
             move = bd.bestMove;
-            auto now = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
-            if (elapsed > moveTL) {
-                break;
-            }
+
             if (bd.evalBuffer <= alpha || bd.evalBuffer >= beta) {
                 alpha = WORST_EVAL;
                 beta = PERFECT_EVAL;
@@ -198,6 +196,12 @@ void Search::moveBySide() {
                 alpha = bd.evalBuffer - aspirationWindow;
                 beta = bd.evalBuffer + aspirationWindow;
                 ++depth;
+                auto now = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+
+                if (elapsed > moveTL) {
+                    break;
+                }
             }
 
             // collect PV
@@ -205,6 +209,12 @@ void Search::moveBySide() {
             memcpy(PVStack, bd.pvLine, PVPointer * sizeof(Move));
 
             if (debug) {
+                bd.endMove = bd.board.getMoves(bd.moves);
+                bd.curMove = bd.moves;
+                /*for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
+                    std::cout << bd.board.parseMoveToStr(bd.moves[ptr]) << ' ';
+                }
+                std::cout << std::endl;*/
                 std::cout << "depth: " << depth << ' ';
                 for (int i = 0; i < bd.pvLen; ++i) {
                     std::cout << bd.board.parseMoveToStr(PVStack[i]) << ' ';

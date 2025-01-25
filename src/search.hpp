@@ -12,7 +12,7 @@ private:
     DataStack ds;
     TranspositionTable tt;
     uint32_t maxDepth = 6;
-    uint32_t aspirationWindow = 25;
+    uint32_t aspirationWindow = 75;
     uint32_t vis = 0;
     int moveStrength[MAX_MOVE_SIZE];
     Move PVStack[DATA_STACK_SIZE];
