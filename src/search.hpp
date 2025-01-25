@@ -21,7 +21,7 @@ private:
     bool debug = 0;
     int alpha;
     int beta;
-    int moveTL = 100;
+    int moveTL = 70;
 
     void calculate(uint32_t depth);
     void quiescent();
