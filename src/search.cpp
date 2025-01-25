@@ -173,7 +173,8 @@ void Search::moveBySide() {
         float remainingTime;
         std::string moveStr;
         std::cin >> moveStr >> remainingTime;
-        if (remainingTime < 3) maxDepth = 4;
+        if (remainingTime < 3) moveTL = 50;
+        if (remainingTime < 1) moveTL = 25;
         move = ds.getCurBD().board.parseStrToMove(moveStr);
     } else {
         PVPointer = 0;
