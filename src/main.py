@@ -12,7 +12,7 @@ def chess_bot(obs):
 
     if engine is None:
         engine = subprocess.Popen(
-            EXECUTABLE_PATH_TEST,
+            EXECUTABLE_PATH,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
