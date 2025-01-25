@@ -8,6 +8,8 @@
 class BoardData {
 public:
     Move moves[MAX_MOVE_SIZE];
+    Move pvLine[DATA_STACK_SIZE];
+    uint32_t pvLen;
     Move *endMove;
     Move *curMove;
     Evaluator evaluator;
@@ -48,6 +50,8 @@ public:
     inline BoardData &getTopBD() { return stack[pointer - 1]; }
     inline BoardData &getCurBD() { return stack[0]; }
     inline uint32_t &getCurDepth() { return pointer; }
+    inline Move *getFuturePVLine() { return stack[pointer].pvLine; }
+    inline uint32_t &getFuturePVLen() { return stack[pointer].pvLen; }
     void down(Move m);
     void up(int value);
     void makeMove(Move m);

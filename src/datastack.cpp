@@ -9,6 +9,8 @@ void DataStack::down(Move m) {
     newBD.alpha = -oldBD.beta;
     newBD.beta = -oldBD.alpha;
     newBD.isStart = 0;
+    newBD.bestMove.reset();
+    newBD.pvLen = 0;
     increaseRepetitions(newBD.getZobrist());
     ++pointer;
 }
@@ -35,6 +37,8 @@ void DataStack::makeMove(Move m) {
     bd.alpha = WORST_EVAL;
     bd.beta = PERFECT_EVAL;
     bd.isStart = 0;
+    bd.bestMove.reset();
+    bd.pvLen = 0;
     increaseRepetitions(bd.getZobrist());
 }
 

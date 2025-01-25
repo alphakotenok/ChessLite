@@ -12,6 +12,11 @@ public:
     inline int type() { return data & 12288; }
     inline int promotion() { return data >> 14; }
     inline void reset() { data = 0; }
+    inline void setData(uint16_t data) { this->data = data; }
+    inline bool isSet() { return this->data; }
 
     bool operator==(Move m) { return data == m.data; }
+    explicit operator ull() const {
+        return static_cast<ull>(data);
+    }
 };

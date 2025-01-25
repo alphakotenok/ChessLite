@@ -16,6 +16,7 @@ private:
     uint8_t castling;
     uint8_t en_passant; // 0-63 - position of en passant, 64 - no en passant
     uint8_t checker;    // 0-63 - position of checker, 64 - double check, 65 - no check
+    bool finished;
 
     void recalculatePinned(Color col);
     inline void recalculatePinned() {
@@ -131,11 +132,12 @@ public:
     void applyMove(Move m, Board *b) const;
 
     inline bool isChecked() { return checker != NO_CHECK; };
+    inline bool isFinished() { return finished; }
 
     // parsing
 
     Move parseStrToMove(std::string moveStr);
-    std::string parseMoveToStr(Move move);
+    std::string parseMoveToStr(Move move) const;
 
     void setPT(int *pt);
 
@@ -143,4 +145,6 @@ public:
     bool checkSEE(Move m, int val) const;
 
     ull getExtraZobrist();
+
+    void print();
 };

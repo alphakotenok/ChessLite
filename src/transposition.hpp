@@ -1,8 +1,9 @@
 #pragma once
 
+#include "move.hpp"
 #include "types.hpp"
 
-const ull TT_SIZE = 1 << 17; // 4 mb
+const ull TT_SIZE = 1 << 18; // 4 mb
 
 const ull EVAL_MASK = (1ull << 32) - 1;
 const ull BEST_MOVE_MASK = ((1ull << 16) - 1) << 32;
@@ -18,7 +19,7 @@ public:
 
     TTEntry() : data(0), hash{0} {};
 
-    int probe(ull hash, uint32_t depth, int alpha, int beta) {
+    int probe(ull hash, uint32_t depth, int alpha, int beta, Move &bestMovePointer) {
         if (hash == this->hash) {
             int eval = static_cast<int>(data & EVAL_MASK);
             uint32_t entryDepth = (data & DEPTH_MASK) >> 48;
@@ -28,13 +29,20 @@ public:
                 if (et == ALPHA && eval <= alpha) return alpha;
                 if (et == BETA && eval >= beta) return beta;
             }
+            bestMovePointer.setData((data & BEST_MOVE_MASK) >> 32);
         }
         return INVALID_TABLE_VALUE;
     }
 
-    void add(ull hash, int eval, uint32_t depth, EvalType et) {
+    void add(ull hash, int eval, uint32_t depth, EvalType et, Move bestMove) {
         this->hash = hash;
-        this->data = static_cast<ull>(eval) | (static_cast<ull>(depth) << 48) | (static_cast<ull>(et) << 56);
+        this->data = static_cast<ull>(eval) | ((ull)(bestMove) << 32) | (static_cast<ull>(depth) << 48) | (static_cast<ull>(et) << 56);
+    }
+
+    inline void getBestMove(ull hash, Move &movePointer) {
+        if (hash == this->hash) {
+            movePointer.setData((data & BEST_MOVE_MASK) >> 32);
+        }
     }
 };
 
@@ -43,10 +51,13 @@ private:
     TTEntry table[TT_SIZE];
 
 public:
-    inline int probe(ull hash, uint32_t depth, int alpha, int beta) {
-        return table[hash & (TT_SIZE - 1)].probe(hash, depth, alpha, beta);
+    inline int probe(ull hash, uint32_t depth, int alpha, int beta, Move &bestMovePointer) {
+        return table[hash & (TT_SIZE - 1)].probe(hash, depth, alpha, beta, bestMovePointer);
     }
-    inline void add(ull hash, int eval, uint32_t depth, EvalType et) {
-        table[hash & (TT_SIZE - 1)].add(hash, eval, depth, et);
+    inline void add(ull hash, int eval, uint32_t depth, EvalType et, Move bestMove) {
+        table[hash & (TT_SIZE - 1)].add(hash, eval, depth, et, bestMove);
+    }
+    inline void getBestMove(ull hash, Move &movePointer) {
+        table[hash & (TT_SIZE - 1)].getBestMove(hash, movePointer);
     }
 };

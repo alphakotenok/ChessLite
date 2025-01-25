@@ -345,20 +345,29 @@ Move *Board::getMoves(Move *mp) {
                         : (isInCheck(checker) ? getAllPseudolegalMoves<WHITE, IN_CHECK>(mp)
                                               : getAllPseudolegalMoves<WHITE, SAFE>(mp));
     Move *ans = mp;
+    finished = 1;
     for (; mp < endMove; ++mp) {
-        if (isLegal(*mp) && checkSEE(*mp, -200)) *(ans++) = *mp;
+        if (isLegal(*mp)) {
+            finished = 0;
+            if (checkSEE(*mp, -200)) *(ans++) = *mp;
+        }
     }
     return ans;
 }
 
 Move *Board::getCaptureMoves(Move *mp) {
+    assert(!finished);
     Move *endMove = col ? (isInCheck(checker) ? getCapturePseudolegalMoves<BLACK, IN_CHECK>(mp)
                                               : getCapturePseudolegalMoves<BLACK, SAFE>(mp))
                         : (isInCheck(checker) ? getCapturePseudolegalMoves<WHITE, IN_CHECK>(mp)
                                               : getCapturePseudolegalMoves<WHITE, SAFE>(mp));
     Move *ans = mp;
+    finished = 1;
     for (; mp < endMove; ++mp) {
-        if (isLegal(*mp) && checkSEE(*mp, -100)) *(ans++) = *mp;
+        if (isLegal(*mp)) {
+            finished = 0;
+            if (checkSEE(*mp, -100)) *(ans++) = *mp;
+        }
     }
     return ans;
 }
@@ -435,10 +444,8 @@ void Board::applyMove(Move m, Board *b) const {
     // handle captures
     if (b->byCol[notCol] & toULL) {
         int ptTo = pieceAt[to];
-        if (ptTo) {
-            ptTo -= (ptTo > 6 ? 7 : 1);
-            b->byType[ptTo] ^= toULL;
-        }
+        ptTo -= (ptTo > 6 ? 7 : 1);
+        b->byType[ptTo] ^= toULL;
         b->byCol[notCol] ^= toULL;
         b->all ^= toULL;
         b->fiftyMoveTimer = 0;
@@ -507,7 +514,7 @@ Move Board::parseStrToMove(std::string moveStr) {
     return Move(from, to, type, promotion);
 }
 
-std::string Board::parseMoveToStr(Move move) {
+std::string Board::parseMoveToStr(Move move) const {
     if (move == 0) return "invalid";
     std::string ans;
     ans += (char)('a' + (move.from() & 7));
@@ -548,6 +555,8 @@ void Board::setPT(int *pt) {
 Board::Board(std::string s) {
     int pos = 0;
     int boardPos = 0;
+    memset(byCol, 0, sizeof(byCol));
+    memset(byType, 0, sizeof(byType));
     while (s[pos] != ' ') {
         if (s[pos] == '/') {
             ++pos;
@@ -578,7 +587,8 @@ Board::Board(std::string s) {
         castling |= s[pos] == 'K'   ? WHITE_OO
                     : s[pos] == 'k' ? BLACK_OO
                     : s[pos] == 'Q' ? WHITE_OOO
-                                    : BLACK_OOO;
+                    : s[pos] == 'q' ? BLACK_OOO
+                                    : 0;
         ++pos;
     }
     ++pos;
@@ -673,5 +683,14 @@ void Board::recalculatePieceAt() {
             bit = extractLSB(mask);
             pieceAt[bit] = j + 7;
         }
+    }
+}
+
+void Board::print() {
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            std::cout << pieceAt[j + (i << 3)] << ' ';
+        }
+        std::cout << std::endl;
     }
 }
