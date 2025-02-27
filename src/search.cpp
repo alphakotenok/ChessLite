@@ -176,8 +176,8 @@ void Search::moveBySide() {
         float remainingTime;
         std::string moveStr;
         std::cin >> moveStr >> remainingTime;
-        if (remainingTime < 3) moveTL = 40;
-        if (remainingTime < 1) moveTL = 20;
+        if (remainingTime < 3) moveTL = 80;
+        if (remainingTime < 1) moveTL = 40;
         move = ds.getCurBD().board.parseStrToMove(moveStr);
     } else {
         PVPointer = 0;
@@ -211,15 +211,23 @@ void Search::moveBySide() {
             memcpy(PVStack, bd.pvLine, PVPointer * sizeof(Move));
 
             if (debug) {
-                bd.endMove = bd.board.getMoves(bd.moves);
+                /*Board debb;
+                bd.board.applyMove(bd.bestMove, &debb);
+                std::cout << bd.board.parseMoveToStr(bd.bestMove) << std::endl;
+                debb.print();
+                bd.endMove = debb.getMoves(bd.moves);
                 bd.curMove = bd.moves;
-                /*for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
-                    std::cout << bd.board.parseMoveToStr(bd.moves[ptr]) << ' ';
+                for (int ptr = 0; ptr < bd.endMove - bd.moves; ++ptr) {
+                    std::cout << debb.parseMoveToStr(bd.moves[ptr]) << ' ';
                 }
                 std::cout << std::endl;*/
+                Board b1 = bd.board;
+                Board b2;
                 std::cout << "depth: " << depth << ' ';
                 for (int i = 0; i < bd.pvLen; ++i) {
-                    std::cout << bd.board.parseMoveToStr(PVStack[i]) << ' ';
+                    std::cout << b1.parseMoveToStr(PVStack[i]) << ' ';
+                    b1.applyMove(PVStack[i], &b2);
+                    b1 = b2;
                 }
                 std::cout << ", vis: " << vis << std::endl;
             }

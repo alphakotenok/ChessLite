@@ -19,10 +19,10 @@ private:
     Move PVStack[DATA_STACK_SIZE];
     uint32_t PVPointer = 0;
     bool pvUsed;
-    bool debug = 0;
+    bool debug = 1;
     int alpha;
     int beta;
-    int moveTL = 70;
+    int moveTL = 150;
     bool workerHasToStop;
 
     void calculate(uint32_t depth);
@@ -35,3 +35,5 @@ public:
     Search(Board board) : ds(board), PVStack{0} {}
     void start();
 };
+
+// 4243824

@@ -4,13 +4,13 @@
 
 class Board {
 private:
+    uint32_t pieceAt[64];
     ull byType[6];
     ull byCol[2];
     ull all;
     ull pinned[2];
     ull pinner[2];
     ull extraZobrist;
-    uint32_t pieceAt[64];
     Color col;
     uint8_t fiftyMoveTimer;
     uint8_t castling;

@@ -3,7 +3,7 @@
 #include "move.hpp"
 #include "types.hpp"
 
-const ull TT_SIZE = 1 << 17; // 4 mb
+const ull TT_SIZE = 1 << 18; // 4 mb
 
 const ull EVAL_MASK = (1ull << 32) - 1;
 const ull BEST_MOVE_MASK = ((1ull << 16) - 1) << 32;

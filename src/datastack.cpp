@@ -3,7 +3,7 @@
 
 void DataStack::down(Move m) {
     BoardData &oldBD = stack[pointer - 1], &newBD = stack[pointer];
-    memcpy(&newBD.evaluator, &oldBD.evaluator, sizeof(Evaluator));
+    newBD.evaluator.setFrom(oldBD.evaluator);
     oldBD.board.applyMove(m, &newBD.board);
     newBD.evaluator.update(m);
     newBD.alpha = -oldBD.beta;
@@ -32,7 +32,6 @@ void DataStack::makeMove(Move m) {
     BoardData &bd = stack[0];
     bd.board.applyMove(m, &tempB);
     memcpy(&bd.board, &tempB, sizeof(Board));
-    bd.board.setPT(bd.evaluator.getPT());
     bd.evaluator.reset();
     bd.alpha = WORST_EVAL;
     bd.beta = PERFECT_EVAL;

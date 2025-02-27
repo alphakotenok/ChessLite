@@ -1,5 +1,6 @@
 #pragma once
 
+#include "board.hpp"
 #include "move.hpp"
 #include "types.hpp"
 
@@ -56,9 +57,9 @@ const int PIECE_VALUE[6] = {500, 320, 330, 900, 100, 20000};
 
 class Evaluator {
 private:
+    Board *b;
     ull zobrist = 0;
     int eval = 0;
-    int pt[64]; // which piece is positioned at each square
     // positive = white
     // negative = black
     // numeration starts with one
@@ -67,12 +68,18 @@ private:
     ull getSquareHash(int sq);
 
 public:
-    inline int getEval(Color col) { return col ? -eval : eval; }
-    Evaluator() {};
+    inline int getEval(Color col) {
+        return col ? -eval : eval;
+    }
+    Evaluator() {}
     void update(Move m);
     int getMoveStrength(Move m, Color col);
-    inline int *getPT() { return pt; }
     void reset();
     void print();
     inline ull getMainZobrist() { return zobrist; }
+    inline void setBoard(Board *b) { this->b = b; }
+    inline void setFrom(Evaluator ev) {
+        zobrist = ev.zobrist;
+        eval = ev.eval;
+    }
 };

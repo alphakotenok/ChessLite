@@ -7,13 +7,13 @@
 
 class BoardData {
 public:
+    Evaluator evaluator;
+    Board board;
+    Move *endMove;
+    Move *curMove;
     Move moves[MAX_MOVE_SIZE];
     Move pvLine[DATA_STACK_SIZE];
     uint32_t pvLen;
-    Move *endMove;
-    Move *curMove;
-    Evaluator evaluator;
-    Board board;
     int alpha;
     int beta;
     int evalBuffer;
@@ -21,8 +21,6 @@ public:
     Move bestMove;
 
     BoardData(Board board = Board()) : board(board) {
-        board.setPT(evaluator.getPT());
-        evaluator.reset();
         alpha = WORST_EVAL;
         beta = PERFECT_EVAL;
         uint32_t isStart = 0;
@@ -41,7 +39,10 @@ private:
 
 public:
     DataStack(Board &startingBoard) : repetitionTable{0} {
-        stack[0] = BoardData(startingBoard);
+        stack[0].board = startingBoard;
+        stack[0].evaluator.setBoard(&stack[0].board);
+        stack[0].evaluator.reset();
+        for (int i = 1; i < DATA_STACK_SIZE; ++i) stack[i].evaluator.setBoard(&stack[i].board);
         pointer = 1;
         // add new position to rep table
         increaseRepetitions(stack[0].getZobrist());

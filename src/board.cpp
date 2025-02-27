@@ -535,21 +535,7 @@ std::string Board::parseMoveToStr(Move move) const {
 }
 
 void Board::setPT(int *pt) {
-    memset(pt, 0, 64 * sizeof(int));
-    ull mask;
-    int bit;
-    for (int j = 0; j < 6; ++j) {
-        mask = byCol[0] & byType[j];
-        while (mask) {
-            bit = extractLSB(mask);
-            pt[bit] = j + 1;
-        }
-        mask = byCol[1] & byType[j];
-        while (mask) {
-            bit = extractLSB(mask);
-            pt[bit] = -j - 1;
-        }
-    }
+    memcpy(pt, pieceAt, 64 * sizeof(int));
 }
 
 Board::Board(std::string s) {

@@ -1,8 +1,6 @@
 #include "board.hpp"
 #include "extra.hpp"
-#include "move.hpp"
 #include "search.hpp"
-#include "transposition.hpp"
 #include "types.hpp"
 
 int main() {
@@ -10,7 +8,7 @@ int main() {
     init();
     //=============|DEBUG PLAYGROUND|=============//
 
-    // std::cout << sizeof(Search) << std::endl;
+    std::cout << sizeof(Search) << std::endl;
 
     //============================================//
 
